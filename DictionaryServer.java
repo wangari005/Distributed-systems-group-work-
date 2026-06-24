@@ -1,9 +1,11 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.*;
 
 public class DictionaryServer {
     private static final int PORT = 5050;
+    private static final int MAX_THREADS = 10; // Bounded thread pool — prevents resource exhaustion
     private static final Map<String, String> dictionary = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
     static {
@@ -11,9 +13,9 @@ public class DictionaryServer {
         dictionary.put("binary", "A number system using only two digits: 0 and 1.");
         dictionary.put("compiler", "A program that translates source code into machine code.");
         dictionary.put("database", "An organized collection of structured data stored electronically.");
-        dictionary.put("encapsulation", "An OOP principle that bundles data and methods that operate on the data within a single unit.");
+        dictionary.put("encapsulation", "An OOP principle that bundles data and methods within a single unit.");
         dictionary.put("firewall", "A network security system that monitors and controls incoming and outgoing traffic.");
-        dictionary.put("garbage collection", "Automatic memory management that reclaims memory occupied by objects no longer in use.");
+        dictionary.put("garbage collection", "Automatic memory management that reclaims memory from unused objects.");
         dictionary.put("hashing", "The process of converting input data into a fixed-size string of characters.");
         dictionary.put("interface", "A contract in Java specifying methods a class must implement.");
         dictionary.put("jvm", "Java Virtual Machine — the runtime environment that executes Java bytecode.");
@@ -35,21 +37,24 @@ public class DictionaryServer {
     }
 
     public static void main(String[] args) throws IOException {
-      try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-    System.out.println("Dictionary Server running on port " + PORT);
-    System.out.println("Dictionary loaded with " + dictionary.size() + " entries.\n");
+        ExecutorService threadPool = Executors.newFixedThreadPool(MAX_THREADS);
 
-    while (true) {
-        final Socket clientSocket = serverSocket.accept();
-        System.out.println("Client connected: " + clientSocket.getInetAddress());
-        new Thread(() -> handleClient(clientSocket)).start();
-    }
-}
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            System.out.println("Dictionary Server running on port " + PORT);
+            System.out.println("Dictionary loaded with " + dictionary.size() + " entries.\n");
 
+            while (true) {
+                final Socket clientSocket = serverSocket.accept();
+                System.out.println("Client connected: " + clientSocket.getInetAddress());
+                threadPool.submit(() -> handleClient(clientSocket)); // Bounded pool, not raw threads
+            }
+        } finally {
+            threadPool.shutdown();
+        }
     }
 
     private static void handleClient(Socket socket) {
-        try (
+        try (socket; // Auto-closes client socket when done — fixes resource leak
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)
         ) {

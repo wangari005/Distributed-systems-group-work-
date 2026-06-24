@@ -24,12 +24,21 @@ public class DictionaryClient {
 
                 if (word.isEmpty()) continue;
 
-                out.println(word);  // Send word to server
+                out.println(word); // Send word to server
 
-                String response = in.readLine();  // Read definition back
+                if (word.equalsIgnoreCase("exit")) {
+                    System.out.println("Goodbye!");
+                    break; // Exit BEFORE reading, avoids protocol mismatch
+                }
+
+                String response = in.readLine(); // Read definition back
+
+                if (response == null) {
+                    System.out.println("Server disconnected unexpectedly.");
+                    break;
+                }
+
                 System.out.println("Definition: " + response + "\n");
-
-                if (word.equalsIgnoreCase("exit")) break;
             }
 
         } catch (ConnectException e) {
